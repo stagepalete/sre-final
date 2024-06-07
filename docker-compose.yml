@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  saleor:
+    build: .
+    container_name: saleor-api
+    ports:
+      - 8000:8000
+    restart: unless-stopped
+    networks:
+      - saleor-backend-tier
+      - monitoring
+    stdin_open: true
+    tty: true
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - saleor-media:/app/media
+      - ./logs:/app/logs
+    env_file:
+      - common.env
+      - backend.env
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - DASHBOARD_URL=http://localhost:9000/
+      - ALLOWED_HOSTS=localhost,127.0.0.1,172.18.44.198
+      - ALLOWED_CLIENT_HOSTS=localhost,127.0.0.1,172.18.44.198
+      - DEBUG=True
+
+  db:
+    image: library/postgres:13-alpine
+    ports:
+      - 5432:5432
+    restart: unless-stopped
+    networks:
+      - saleor-backend-tier
+    volumes:
+      - saleor-db:/var/lib/postgresql/data
+      - ./replica_user.sql:/docker-entrypoint-initdb.d/replica_user.sql
+    environment:
+      - POSTGRES_USER=saleor
+      - POSTGRES_PASSWORD=saleor
+
+  redis:
+    image: library/redis:7.0-alpine
+    ports:
+      - 6379:6379
+    restart: unless-stopped
+    networks:
+      - saleor-backend-tier
+    volumes:
+      - saleor-redis:/data
+
+  dashboard:
+    image: ghcr.io/saleor/saleor-dashboard:latest
+    ports:
+      - 9000:80
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - 9090:9090
+    restart: unless-stopped
+    volumes:
+      - ./prometheus:/etc/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - monitoring
+      - saleor-backend-tier
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    volumes:
+      - ./grafana_data/:/var/lib/grafana
+    networks:
+      - monitoring
+
+  alert-manager:
+    image: prom/alertmanager:latest
+    container_name: alert-manager
+    restart: unless-stopped
+    volumes:
+      - "./alertmanager:/config"
+      - alertmanager-data:/data
+    ports:
+      - 9093:9093
+
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    expose:
+      - 9100
+    networks:
+      - monitoring
+
+volumes:
+  saleor-media:
+  saleor-db:
+    driver: local
+  saleor-redis:
+    driver: local
+  alertmanager-data:
+
+
+networks:
+  saleor-backend-tier:
+    driver: bridge
+  monitoring:
+    driver: bridge
