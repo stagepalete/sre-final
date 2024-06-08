@@ -32,6 +32,7 @@ from .core.schedules import initiated_promotion_webhook_schedule
 from .graphql.executor import patch_executor
 
 django_stubs_ext.monkeypatch()
+import re
 from re import Pattern
 from typing import Union
 from django.utils.functional import SimpleLazyObject
@@ -345,7 +346,10 @@ logging.captureWarnings(True)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "root": {"level": "INFO", "handlers": ["default"]},
+    "root": {
+        "level": "INFO",
+        "handlers": ["default", "default_file"],
+    },
     "formatters": {
         "django.server": {
             "()": "django.utils.log.ServerFormatter",
@@ -357,7 +361,7 @@ LOGGING = {
             "datefmt": "%Y-%m-%dT%H:%M:%SZ",
             "format": (
                 "%(asctime)s %(levelname)s %(lineno)s %(message)s %(name)s "
-                + "%(pathname)s %(process)d %(threadName)s"
+                "%(pathname)s %(process)d %(threadName)s"
             ),
         },
         "celery_json": {
@@ -406,27 +410,51 @@ LOGGING = {
         "null": {
             "class": "logging.NullHandler",
         },
+        "default_file": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "formatter": "verbose" if DEBUG else "json",
+            "filename": os.path.join(PROJECT_ROOT, 'logs/default.log'),
+        },
+        "django.server_file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "formatter": "django.server" if DEBUG else "json",
+            "filename": os.path.join(PROJECT_ROOT, 'logs/server.log'),
+        },
+        "celery_app_files": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "formatter": "verbose" if DEBUG else "celery_json",
+            "filename": os.path.join(PROJECT_ROOT, 'logs/celery.log'),
+        },
+        "celery_task_file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "formatter": "verbose" if DEBUG else "celery_task_json",
+            "filename": os.path.join(PROJECT_ROOT, 'logs/celery_task.log'),
+        },
     },
     "loggers": {
         "django": {"level": "INFO", "propagate": True},
         "django.server": {
-            "handlers": ["django.server"],
+            "handlers": ["django.server", "django.server_file"],
             "level": "INFO",
             "propagate": False,
         },
         "celery.app.trace": {
-            "handlers": ["celery_app"],
+            "handlers": ["celery_app", "celery_app_files"],
             "level": "INFO",
             "propagate": False,
         },
         "celery.task": {
-            "handlers": ["celery_task"],
+            "handlers": ["celery_task", "celery_task_file"],
             "level": "INFO",
             "propagate": False,
         },
         "saleor": {"level": "DEBUG", "propagate": True},
         "saleor.graphql.errors.handled": {
-            "handlers": ["default"],
+            "handlers": ["default", "default_file"],
             "level": "INFO",
             "propagate": False,
         },

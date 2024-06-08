@@ -119,6 +119,70 @@ services:
       - 9100
     networks:
       - monitoring
+  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.4.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - http.host=0.0.0.0
+      - transport.host=0.0.0.0
+      - xpack.security.enabled=false
+      - cluster.name=elasticsearch
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - node.name=elasticsearch
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTIC_PASSWORD=admin
+      - KIBANA_PASSWORD=admin
+      - xpack.security.http.ssl.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+    volumes:
+      - ./elk/elasticsearch:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - elk
+  
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.4.0
+    container_name: logstash
+    environment:
+      LS_JAVA_OPTS: -Xms256m -Xmx256m
+      LOGSTASH_INTERNAL_PASSWORD: admin
+    volumes:
+      - ./elk/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./elk/logstash/pipeline/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./elk/logstash/pipeline/logs:/usr/share/logstash/pipeline/logs
+      - ./logs:/app/logstash/logs
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+  
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.4.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=admin
+      - TELEMETRY_ENABLED=false
+    volumes:
+      - ./elk/kibana/kibana.yml:/usr/share/kibana/kibana.yml
+    ports:
+      - "5601:5601"
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
 
 volumes:
   saleor-media:
@@ -128,9 +192,13 @@ volumes:
     driver: local
   alertmanager-data:
   grafana_data:
+  logs:
+    driver: local
 
 networks:
   saleor-backend-tier:
     driver: bridge
   monitoring:
+    driver: bridge
+  elk:
     driver: bridge
