@@ -32,7 +32,26 @@ from .core.schedules import initiated_promotion_webhook_schedule
 from .graphql.executor import patch_executor
 
 django_stubs_ext.monkeypatch()
+from re import Pattern
+from typing import Union
+from django.utils.functional import SimpleLazyObject
 
+def lazy_re_compile(regex, flags=0):
+    """Lazily compile a regex with flags."""
+
+    def _compile():
+        # Compile the regex if it was not passed pre-compiled.
+        if isinstance(regex, str):
+            return re.compile(regex, flags)
+        else:
+            assert not flags, "flags must be empty if regex is passed pre-compiled"
+            return regex
+
+    return SimpleLazyObject(_compile)
+
+PATTERNS_IGNORED_IN_QUERY_CAPTURES: list[Union[Pattern, SimpleLazyObject]] = [
+    lazy_re_compile(r"^SET\s+")
+]
 
 def get_list(text):
     return [item.strip() for item in text.split(",")]
