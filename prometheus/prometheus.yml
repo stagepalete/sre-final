@@ -13,4 +13,4 @@ scrape_configs:
 
   - job_name: 'saleor'
     static_configs:
-      - targets: ['172.18.44.198:8000']
+      - targets: ['localhost:8000']

@@ -68,6 +68,7 @@ services:
       - ./prometheus:/etc/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.external-url=http://107.22.90.68/prometheus/'
     networks:
       - monitoring
       - saleor-backend-tier
@@ -79,7 +80,8 @@ services:
       - 3000:3000
     restart: unless-stopped
     volumes:
-      - ./grafana_data/:/var/lib/grafana
+      - grafana_data:/var/lib/grafana/
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
     networks:
       - monitoring
 
@@ -96,6 +98,7 @@ services:
       - 9093:9093
     command:
       - '--config.file=/config/alertmanager.yml'
+      - '--web.external-url=http://107.22.90.68/alertmanager/'
       - '--log.level=debug'
 
 
@@ -124,7 +127,7 @@ volumes:
   saleor-redis:
     driver: local
   alertmanager-data:
-
+  grafana_data:
 
 networks:
   saleor-backend-tier:
