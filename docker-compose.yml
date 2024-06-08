@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.3'
 
 services:
   saleor:
@@ -88,10 +88,15 @@ services:
     container_name: alert-manager
     restart: unless-stopped
     volumes:
-      - "./alertmanager:/config"
+      - ./alertmanager:/config
       - alertmanager-data:/data
+    networks:
+      - monitoring
     ports:
       - 9093:9093
+    command:
+      - '--config.file=/config/alertmanager.yml'
+      - '--log.level=debug'
 
 
   node-exporter:
